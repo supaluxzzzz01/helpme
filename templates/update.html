@@ -1,0 +1,258 @@
+<html lang="en">
+	<head>
+		<title>display</title>
+		<link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="../static/style.css" rel="stylesheet">
+	</head>
+	<style>
+		* {
+			box-sizing: border-box;
+			margin: 0;
+			padding: 0;
+		}
+		
+		body {
+			background-size: cover;
+			font-family: 'Open Sans', sans-serif;
+			font-size: 16px;
+			line-height: 1.5;
+			color: #fff;
+		}
+		
+		.container {
+		  display: flex;
+		  flex-direction: column;
+		  justify-content: flex-start;
+		  align-items: center;
+		  height: 100vh;
+		  background-color: #fff;
+		  font-family: 'Roboto', sans-serif;
+		}
+		
+		.logo {
+		  margin-bottom: 2rem;
+		}
+		
+		.logo img {
+		  max-width: 10rem;
+		}
+		
+		.login-form {
+		  display: flex;
+		  flex-direction: column;
+		  justify-content: center;
+		  align-items: center;
+		  background-color: #e6e6e6;
+		  padding: 2rem;
+		  border-radius: 0.4rem;
+		  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+		}
+		
+		.register-form {
+		  display: flex;
+		  flex-direction: column;
+		  justify-content: center;
+		  align-items: center;
+		  color: #757575;
+		  background-color: #e6e6e6;
+		  padding: 2rem;
+		  border-radius: 0.4rem;
+		  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+		}
+		
+		h1 {
+		  margin-bottom: 1.5rem;
+		  color: #141414;
+		  font-size: 2rem;
+		}
+		
+		.input-container {
+		  display: flex;
+		  align-items: center;
+		  margin-bottom: 1rem;
+		  border: 1px solid #e6e6e6;
+		  border-radius: 0.3rem;
+		  padding: 0.3rem 1rem;
+		}
+		
+		.input-container i {
+		  margin-right: 0.5rem;
+		  font-size: 1.5rem;
+		  color: #757575;
+		}
+		
+		.input-container input,
+		.input-container select {
+		border: none;
+		outline: none;
+		background-color: #f2f2f2;
+		padding: 1rem;
+		border-radius: 0.5rem;
+		font-size: 1rem;
+		width: 100%;
+		}
+		
+		
+		input[type="email"], input[type="password"], input[type="gender"],input[type="number"] {
+		  border: none;
+		  outline: none;
+		  font-size: 1rem;
+		  width: 100%;
+		}
+		
+		
+		select option {
+		color: #333333;
+		}
+		
+		.btn {
+		  background-color: #8de789;
+		  color: #e6e6e6;
+		  border: none;
+		  border-radius: 0.3rem;
+		  padding: 0.6rem 1rem;
+		  font-size: 1.2rem;
+		  cursor: pointer;
+		  margin-top: 1rem;
+		}
+		
+		.btn:hover {
+		  background-color: #8de789;
+		}
+		
+		.forgot-password {
+		  font-size: 1rem;
+		  color: #757575;
+		  text-align: right;
+		  margin-top: 0.5rem;
+		}
+		
+		.signup-container {
+		  display: flex;
+		  justify-content: center;
+		  align-items: center;
+		  margin-top: 2rem;
+		  font-size: 0.9rem;
+		  color: #757575;
+		}
+		
+		.signup-link {
+		  color: #8de789;
+		  margin-left: 0.3rem;
+		  text-decoration: none;
+		}
+		
+		.signup-link:hover {
+		  text-decoration: underline;
+		}
+		
+		.sidenav {
+		  height: 100%;
+		  width: 0;
+		  position: fixed;
+		  z-index: 1;
+		  top: 0;
+		  left: 0;
+		  background-color: rgb(134, 253, 166);
+		  overflow-x: hidden;
+		  transition: 0.5s;
+		  padding-top: 60px;
+		}
+		
+		.sidenav a {
+		  padding: 8px 8px 8px 32px;
+		  text-decoration: none;
+		  font-size: 25px;
+		  color: #282828;
+		  display: block;
+		  transition: 0.3s;
+		}
+		
+		.sidenav a:hover {
+		  color: #f1f1f1;
+		}
+		
+		.sidenav .closebtn {
+		  position: absolute;
+		  top: 0;
+		  right: 25px;
+		  font-size: 36px;
+		  margin-left: 50px;
+		}
+		
+		@media screen and (max-height: 450px) {
+		  .sidenav {padding-top: 15px;}
+		  .sidenav a {font-size: 18px;}
+		}
+
+		
+		
+	</style>
+	
+	<body>
+			<div id="mySidenav" class="sidenav">
+				<a href="javascript:void(0)" class="closebtn" onclick="closeNav()">&times;</a>
+									<a href="{{url_for('index')}}">Home</a></li>
+								  <a href="{{url_for('display')}}">Profile</a>
+								  <a href="{{url_for('neverfall')}}">Neverfall</a>
+								  <a href="{{url_for('checklist')}}">Checklist</a>
+								  <a href="{{url_for('update')}}">Update</a>
+								  <a href="{{url_for('logout')}}">Log out</a>
+			  </div>
+			  <h1><span style="font-size:30px;cursor:pointer" onclick="openNav()">&#9776; Menu</span></h1>
+			<div class="container">
+				<div class="logo">
+				  <img src="https://scontent.fbkk5-5.fna.fbcdn.net/v/t39.30808-6/312936144_720345806349493_2337133859606521830_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=09cbfe&_nc_ohc=DKYUXV5qfzQAX-f6t0S&_nc_ht=scontent.fbkk5-5.fna&oh=00_AfCRCK0qihtKqVvZ6wxhvXozEIvgoleehqtV1XowdGyBfg&oe=64195CA2" alt="Netflix logo">
+				</div>
+
+			<div class="register-form" align="center" >
+				<div class="contentbar">
+				<h1>Fill Your Details to Update</h1></br>
+			<form action="{{ url_for('update') }}" method="post" autocomplete="off">
+					<div class="msg">{{ msg }}</div>
+					<div class="input-container">
+						<i class="fa fa-user"></i>
+					<input type="text" name="username" placeholder="Enter Your Username" class="textbox" id="username" required></br></br>
+					</div>
+					<div class="input-container">
+						<i class="fa fa-lock"></i>
+					<input type="phone" name="phone" placeholder="Enter Your phone" class="textbox" id="phone" required></br></br>
+					</div>
+					<div class="input-container">
+						<i class="fa fa-venus-mars"></i>
+					<select name="gender" class="textbox" required>
+						<option value="" disabled selected>Select Gender</option>
+						<option value="male">Male</option>
+						<option value="female">Female</option>
+					</select>
+					</div>
+					<div class="input-container">
+						<i class="fa fa-user"></i>
+					<input type="number" name="age" placeholder="Enter Your Age" class="textbox" id="age" required></br></br>
+					</div>
+					<div class="input-container">
+						<i class="fa fa-user"></i>
+					<input type="number" step="0.01" name="weight" placeholder="Enter Your Weight (in kg)" class="textbox" id="weight" required>
+					</div>
+					<div class="input-container">
+						<i class="fa fa-user"></i>
+					<input type="number" step="0.01" name="height" placeholder="Enter Your Height (in meters)" class="textbox" id="height" required>
+					</div>
+					<input type="submit" class="btn" value="Update">
+			</form>					
+				</div>
+				
+			</div>
+		</div>
+		<script>
+			function openNav() {
+			  document.getElementById("mySidenav").style.width = "250px";
+			}
+			
+			function closeNav() {
+			  document.getElementById("mySidenav").style.width = "0";
+			}
+			</script>
+	</body>
+</html>
