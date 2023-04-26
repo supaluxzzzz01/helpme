@@ -1,113 +1,108 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-from flask_mysqldb import MySQL
-import MySQLdb.cursors
-import re
-import MySQLdb
+import cv2
+import mediapipe as mp
+import time
 
+mp_drawing = mp.solutions.drawing_utils
+mp_pose = mp.solutions.pose
 
+cap = cv2.VideoCapture(0)
 
+# Initiate a timer
+start_time = None
+end_time = None
+prev_time = 0
+timer_started = None
+countdown = 5
+# Initiate counters
+sits = 0
+stage = None
 
-app = Flask(__name__)
-
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'test'
-
-mysql = MySQL(app)
-
-@app.route('/')
-@app.route('/login', methods =['GET', 'POST'])
-def login():
-    msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'phone' in request.form:
-        username = request.form['username']
-        phone = request.form['phone']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM users WHERE username = % s AND phone = % s', (username, phone, ))
-        account = cursor.fetchone()
-
-        if account:
-            session['loggedin'] = True
-            session['username'] = account['username']
-            msg = 'Logged in successfully !'
-            return render_template('index.html', msg = msg)
-
-        else:
-            msg = 'Incorrect username / phone !'
-    return render_template('login.html', msg = msg)
-
-@app.route('/logout')
-def logout():
-   session.pop('loggedin', None)
-   session.pop('username', None)
-   return redirect(url_for('login'))    
-
-@app.route('/register', methods =['GET', 'POST'])
-def register():
-    msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'phone' in request.form:
-        username = request.form['username']
-        phone = request.form['phone']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM users WHERE username = % s', (username, ))
-        account = cursor.fetchone()
-        if account:
-            msg = 'Account already exists !'
-        elif not re.match(r'[A-Za-z0-9]+', username):
-            msg = 'name must contain only characters and numbers !'
-        else:
-            cursor.execute('INSERT INTO users VALUES (NULL,%s, %s)', (username, phone))
-            mysql.connection.commit()
-            msg = 'You have successfully registered !'
-    elif request.method == 'POST':
-        msg = 'Please fill out the form !'
-    return render_template('register.html', msg = msg)
-
-
-@app.route("/index")
-def index():
-    if 'loggedin' in session:
-        return render_template("index.html")
-    return redirect(url_for('login'))
-
-@app.route("/display")
-def display():
-    if 'loggedin' in session:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM users WHERE username = % s', (session['username'], ))
-        account = cursor.fetchone()   
-        return render_template("display.html", account = account)
-    return redirect(url_for('login'))
-
-@app.route("/update", methods =['GET', 'POST'])
-def update():
-    msg = ''
-    if 'loggedin' in session:
-        if request.method == 'POST' and 'username' in request.form and 'phone' in request.form:
-            username = request.form['username']
-            phone = request.form['phone']
-            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-            cursor.execute('SELECT * FROM users WHERE username = % s', (username, ))
-            account = cursor.fetchone()
-            if account:
-                msg = 'Account already exists !'
-            elif not re.match(r'[A-Za-z0-9]+', username):
-                msg = 'name must contain only characters and numbers !'
+# Set up Mediapipe instance
+with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            print("Ignoring empty camera frame.")
+            continue
+        
+        # Flip the frame horizontally for a later selfie-view display
+        frame = cv2.flip(frame, 1)
+        
+        # Convert the BGR image to RGB
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        
+        # Make detection
+        results = pose.process(image)
+        
+        # Convert the RGB image back to BGR
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        
+        start_countdown = False
+        # Extract landmarks
+        try:
+            landmarks = results.pose_landmarks.landmark
+        except AttributeError:
+            continue
+        
+        # Draw landmarks
+        mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+        
+        # Extract coordinate values of interest
+        right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
+        right_hand_y = landmarks[mp_pose.PoseLandmark.RIGHT_INDEX].y
+        left_shoulder_y = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].y
+        left_hand_y = landmarks[mp_pose.PoseLandmark.LEFT_INDEX].y
+        
+        knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y
+        hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y
+        
+        # Calculate hip-knee ratio
+        #hip_knee_ratio = (landmarks[mp_pose.PoseLandmark.LEFT_HIP].y - left_knee_y) / (right_shoulder_y - landmarks[mp_pose.PoseLandmark.RIGHT_HIP].y)
+        
+        # Stage 1: Check if right hand is above right shoulder
+        if stage == None:
+            if right_hand_y < right_shoulder_y and left_hand_y < left_shoulder_y:
+                curr_time = time.time()
+                start_countdown = True
+                stage = 1
+                start_time = time.time() + 5
+                prev_time = start_time
+                timer_started = True 
+                text = "Timer Started"   
             else:
-                cursor.execute('UPDATE accounts SET  phone =% s, WHERE username =% s', (phone, (session['username'], ), ))
-                mysql.connection.commit()
-                msg = 'You have successfully updated !'
-        elif request.method == 'POST':
-            msg = 'Please fill out the form !'
-        return render_template("update.html", msg = msg)
-    return redirect(url_for('login'))
+                text = "Raise both hand above shoulder to start timer"
+        # Stage 2: Detecting sits and measuring time
+        elif stage == 1 and start_time >= 0:
+            if knee_y - hip_y < 0.03:
+                sits += 1
+                stage = 2
+                end_time = time.time()
+                text = "Sit Detected, Total Sits: " + str(sits) + ", Time: " + str(round(end_time - start_time, 2)) + "s"
+            else:
+                text = "Stand Straight"
+                
+        # Display stage text
+        cv2.putText(image, text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        if timer_started:
+            curr_time = time.time()
+            timer = curr_time - prev_time
+            if timer < 0:
+                #print(timer)
+                timer = abs(timer)
+                cv2.putText(image, "Countdown: {:.0f}".format(timer), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                        (0, 0, 255), 2)
+                #print(timer)
+            elif timer >= 0:
+                cv2.putText(image, "Timer: {:.2f}".format(timer), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                        (0, 0, 255), 2)
+            
+        # Display frame
+        cv2.imshow('Mediapipe Feed', image)
+        
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
-
-
-
-
-    
+cap.release()
+cv2.destroyAllWindows()

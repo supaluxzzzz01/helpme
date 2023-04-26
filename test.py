@@ -10,11 +10,11 @@ import pandas as pd
 import IPython
 from IPython.display import Audio
 import time
+from time import sleep
 from pathlib import Path
 import threading
 from flaskext.mysql import MySQL
-
-id = 1
+import csv
 
 app = Flask(__name__)
 app.secret_key = 'neverfall'
@@ -61,18 +61,43 @@ def login():
         #cursor.execute('SELECT * FROM users WHERE username = % s AND phone = % s', (username, phone))
         cursor.execute('SELECT * FROM users WHERE username = %s AND phone = %s', (username, phone))
         account = cursor.fetchone()
+        id = account["Id"]
+        row = cursor.fetchone()
+        while row is not None:
+            print(row)
+            row = cursor.fetchone()
+        
+        cursor.execute('SELECT * FROM Checklist WHERE Id = %s order by time DESC', (id,))
+        checklist = cursor.fetchone()
 
         row = cursor.fetchone()
         while row is not None:
             print(row)
             row = cursor.fetchone()
 
+        cursor.execute('SELECT * FROM test WHERE Id = %s order by time DESC' , (id,))
+        tug = cursor.fetchone()
+
+        row = cursor.fetchone()
+        while row is not None:
+            print(row) 
+            row = cursor.fetchone()
+        
+        risk = ''
+        if tug['result'] == 'High' and checklist['sum'] >= 7 :
+           risk = 'High risk of falling'
+        elif tug['result'] == 'High' and checklist['sum'] <= 7 :
+            risk = 'Risk of falling'
+        elif tug['result'] == 'Low' and checklist['sum'] <= 7 :
+            risk = 'Good'
+
+
         if account:
             session['loggedin'] = True
             session['username'] = account['username']
             msg = 'Logged in successfully !'
             login = True
-            return render_template('index.html', msg = msg , status = login)
+            return render_template('index.html', msg = msg ,risk = risk, status = login , account = account, checklist = checklist, tug = tug)
 
         else:
             msg = 'Incorrect username / phone !'
@@ -119,7 +144,48 @@ def register():
 
 @app.route("/index")
 def index():
-    return render_template("index.html")
+    if 'loggedin' in session:
+        cursor = cnx.cursor(dictionary=True)
+        #cursor.execute('SELECT * FROM users WHERE username = % s AND phone = % s', (username, phone))
+        cursor.execute('SELECT * FROM users WHERE username = %s', (session['username'],))
+        account = cursor.fetchone()
+        id = account["Id"]
+        row = cursor.fetchone()
+        while row is not None:
+            print(row)
+            row = cursor.fetchone()
+        
+        cursor.execute('SELECT * FROM Checklist WHERE Id = %s order by time DESC', (id,))
+        checklist = cursor.fetchone()
+
+        row = cursor.fetchone()
+        while row is not None:
+            print(row)
+            row = cursor.fetchone()
+
+        cursor.execute('SELECT * FROM test WHERE Id = %s order by time DESC' , (id,))
+        tug = cursor.fetchone()
+
+        row = cursor.fetchone()
+        while row is not None:
+            print(row)
+            row = cursor.fetchone()
+
+        risk = 'Default'
+        if tug['result'] == 'High' and checklist['sum'] >= 7 :
+            risk = 'High risk of falling'
+        elif tug['result'] == 'High' and checklist['sum'] <= 7 :
+            risk = 'Risk of falling'
+        elif tug['result'] == 'Low' and checklist['sum'] <= 7 :
+            risk = 'Good'
+        else:
+            risk = 'Default'
+            tug = 'Default'
+            checklist =  'Default'
+    msg = ''
+    print(risk)
+    return render_template('index.html', msg = msg ,risk = risk, status = login , account = account, checklist = checklist, tug = tug)
+    #return redirect(url_for('login'))
 
 @app.route("/display")
 def display():
@@ -184,14 +250,15 @@ def updata():
         cursor = cnx.cursor(dictionary=True)
         cursor.execute('SELECT * FROM users WHERE username = %s', (session['username'],))
         account = cursor.fetchone()
+        cnx.commit()
         if request.method == 'POST':
             result = 'risk'
             if _total>12:
-                result == "High risk"
+                result == "High"
             elif _total<=12:
-                result == "Low risk"
+                result == "Low"
             print("This is result in updatedata : " , result)
-            cursor.execute('INSERT INTO test VALUES (%s,%s,%s,%s,%s)', (account["Id"],account["username"],_total,_sittostand,result))
+            cursor.execute('INSERT INTO test VALUES (%s,%s,%s,%s,%s)', (None,account["Id"],_total,_sittostand,result))
             cnx.commit()
 
         return render_template("test.html" , total = _total , sittostand = _sittostand)
@@ -205,7 +272,7 @@ def gen():
     start_time = time.time()
     time_spare = 0
     sit_count = []
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
     mp_drawing = mp.solutions.drawing_utils
     mp_pose = mp.solutions.pose
@@ -231,14 +298,18 @@ def gen():
                 try:
                     landmarks = results.pose_landmarks.landmark
                     # Get coordinates
-                    shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-                    elbow = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+                    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+                    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
                     wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
                     # Calculate angle
-                    angle = calculate_angle(shoulder, elbow, wrist)
+                    angle = calculate_angle(hip, knee, wrist)
                     # Visualize angle
-                    cv2.putText(image, str(angle), 
-                                tuple(np.multiply(elbow, [1080, 720]).astype(int)), 
+                    cv2.putText(image, 
+                                tuple(np.multiply(knee, [1080, 720]).astype(int)), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
+                                        )
+                    cv2.putText(image, 
+                                tuple(np.multiply(hip, [1080, 720]).astype(int)), 
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
                                         )
                     # Curl counter logic
@@ -246,6 +317,8 @@ def gen():
                     if angle > 30:
                         stage = "sit"
                         sit_count.append(1)
+                        print("hip_sit: ",hip)
+                        print("knee_sit: ",knee)
                     if  stage =='sit' and angle < 15 :
                         stage="stand"
                         counter = time.time() - start_time
@@ -253,8 +326,10 @@ def gen():
                         print("counter:",counter,"seconds")
                         print("Sit to stand",float("{0:.2f}".format(counter-time_spare)),"seconds")
                         time_spare = counter
+                        print("hip_sit: ",hip)
+                        print("knee_sit: ",knee)
                         sit_count.append(0) 
-                        print("sit_count",sit_count) 
+                        #print("sit_count",sit_count) 
                         sittostand = float("{0:.2f}".format(counter-time_spare))
                     
                 except:
@@ -337,6 +412,7 @@ def process_video_stream():
     mp_pose = mp.solutions.pose
 
     #open camera
+    timer = 1
     cap = cv2.VideoCapture(0)
     # Curl counter variables
     counter = 0
@@ -355,9 +431,10 @@ def process_video_stream():
 
     ## Setup mediapipe instance
     with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-        while cap.isOpened():
+        while True:
 
             ret, frame = cap.read()
+            cv2.imencode('.jpg',frame)
             if not ret:
                 break
 
@@ -376,32 +453,56 @@ def process_video_stream():
                 try:
                     landmarks = results.pose_landmarks.landmark
                     # Get coordinates
-                    shoulder = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
-                    elbow = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
-                    wrist = [landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].x,landmarks[mp_pose.PoseLandmark.LEFT_WRIST.value].y]
-                    # Calculate angle
-                    angle = calculate_angle(shoulder, elbow, wrist)
-                    # Visualize angle
-                    cv2.putText(image, str(angle), 
-                                tuple(np.multiply(elbow, [1080, 720]).astype(int)), 
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2, cv2.LINE_AA
-                                        )
+                    hip = [landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x,landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y]
+                    knee = [landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y]
+                    knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y
+                    hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y
+                    right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
+                    right_hand_y = landmarks[mp_pose.PoseLandmark.RIGHT_INDEX].y
+                    left_shoulder_y = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].y
+                    left_hand_y = landmarks[mp_pose.PoseLandmark.LEFT_INDEX].y
+                    ret, frame = cap.read()
                     # Curl counter logic
-                
-                    if angle > 30:
-                        stage = "sit"
-                        sit_count.append(1)
-                    if  stage =='sit' and angle < 15 :
-                        stage="stand"
-                        counter = time.time() - start_time
-                        counter = float("{0:.2f}".format(counter))
-                        print("counter:",counter,"seconds")
-                        print("Sit to stand",float("{0:.2f}".format(counter-time_spare)),"seconds")
-                        sittostand = counter - time_spare
-                        time_spare = counter
-                        sit_count.append(0) 
-                        print("sit_count",sit_count) 
-           
+                    if right_hand_y < right_shoulder_y and left_hand_y < left_shoulder_y :
+                        start_time = time.time() 
+                        while timer >= 0:
+                            
+
+                            cv2.putText(frame, str(timer), 
+                            (200, 250), cv2.FONT_HERSHEY_SIMPLEX,
+                            7, (0, 255, 255),
+                            4, cv2.LINE_AA)
+                            
+
+                            cur = time.time()
+                            if cur - start_time >= 1:
+                                start_time = cur
+                                timer = timer -1
+
+                        else:
+                            ret, frame = cap.read()
+                            cv2.imencode('.jpg', frame)
+                            #start_time = time.time()
+                            if knee_y - hip_y < 0.03:
+                                stage = "sit"
+                                sit_count.append(1)
+                                #print("hip_sit: ",hip)
+                                #print("knee_sit: ",knee)
+                            if  stage =='sit' and knee_y - hip_y >= 0.03 :
+                                stage="stand"
+                                counter = time.time() - start_time
+                                counter = float("{0:.2f}".format(counter))
+                                print("counter:",counter,"seconds")
+                                print("Sit to stand",float("{0:.2f}".format(counter-time_spare)),"seconds")
+                                sittostand = counter - time_spare
+                                time_spare = counter
+                                sit_count.append(0) 
+                                #print("hip_sit: ",hip)
+                                #print("knee_sit: ",knee)
+                                #print("sit_count",sit_count)
+                            
+                            
+            
 
                       
                 except:
@@ -439,23 +540,158 @@ def process_video_stream():
                 elif sit_count[-4:] == [0,1,1,1]:
                     print("Total",float("{0:.2f}".format(time.time() - start_time)),"seconds")
                     break
-            
-            total = float("{0:.2f}".format(time.time() - start_time))
-        # print("The end of the processes...")
 
-        cap.release()
-        cv2.destroyAllWindows()
+                total = float("{0:.2f}".format(time.time() - start_time))
+                # print("The end of the processes...")
+
+                cap.release()
+                cv2.destroyAllWindows()
                 
     #return total,sittostand
     _total = total
     _sittostand = sittostand
-    return redirect(url_for('updata'))
+    #return redirect(url_for('updata'))
 
-  
+def video():
+    global _total , _sittostand
+    mp_drawing = mp.solutions.drawing_utils
+    mp_pose = mp.solutions.pose  
+
+    cap = cv2.VideoCapture(0)
+    #posture.csv = []
+    #header = ["time","diff_shoulder","ratio_armR","ratio_armL","diff_hip","ratio_legR","ratio_legL","should meet doctor?"]
+    # Initiate a timer
+    start_time = None
+    end_time = None
+    prev_time = 0
+    timer_started = None
+    # Initiate counters
+    sits = 0
+    stage = None
+    sec = None
+    tester = 3
+    # Set up Mediapipe instance
+    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+        while cap.isOpened():
+            ret, frame = cap.read()
+
+            cv2.imencode('.jpg',frame)
+            if not ret:
+                print("Ignoring empty camera frame.")
+                continue
+            
+            # Flip the frame horizontally for a later selfie-view display
+            frame = cv2.flip(frame, 1)
+            
+            # Convert the BGR image to RGB
+            image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            image.flags.writeable = False
+            
+            # Make detection
+            results = pose.process(image)
+            
+            # Convert the RGB image back to BGR
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            
+           
+            # Extract landmarks
+            try:
+                landmarks = results.pose_landmarks.landmark
+            except AttributeError:
+                continue
+            
+            # Draw landmarks
+            mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            
+            # Extract coordinate values of interest
+            right_shoulder_y = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER].y
+            left_shoulder_y = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER].y
+
+            right_elbow_y = landmarks[mp_pose.PoseLandmark.RIGHT_ELBOW].y
+            left_elbow_y = landmarks[mp_pose.PoseLandmark.LEFT_ELBOW].y
+
+            right_hand_y = landmarks[mp_pose.PoseLandmark.RIGHT_WRIST].y
+            left_hand_y = landmarks[mp_pose.PoseLandmark.LEFT_WRIST].y
+            
+            left_knee_y = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value].y
+            right_knee_y = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value].y
+
+            left_hip_y = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].y
+            right_hip_y = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value].y
+
+            left_ankel_y = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value].y
+            right_ankel_y = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value].y
+        
+            diff_shoulder = abs(right_shoulder_y-left_shoulder_y)
+            ratio_armR = abs(right_shoulder_y-right_elbow_y)/abs(right_elbow_y-right_hand_y)
+            ratio_armL = abs(left_shoulder_y-left_elbow_y)/abs(left_elbow_y-left_hand_y)
+            diff_hip = abs(right_hip_y-left_hip_y)
+            ratio_legR = abs(right_hip_y-right_knee_y)/abs(right_knee_y-right_ankel_y)
+            ratio_legL = abs(left_hip_y-left_knee_y)/abs(left_knee_y-left_ankel_y)
+
+            List = [tester,sec,diff_shoulder,ratio_armR,ratio_armL,diff_hip,ratio_legR,ratio_legL]
+            # Stage 1: Check if right hand is above right shoulder
+            if stage == None:
+                if right_hand_y < right_shoulder_y and left_hand_y < left_shoulder_y:
+                    curr_time = time.time()
+                    stage = 1
+                    start_time = time.time() + 5
+                    prev_time = start_time
+                    timer_started = True 
+                    text = "Timer Started"  
+                else:
+                    text = "Raise both hand above shoulder to start timer"
+            # Stage 2: Detecting sits and measuring time
+            elif stage == 1 and start_time >= 0:
+                if left_knee_y - left_hip_y < 0.03 and right_knee_y - right_hip_y < 0.03 :
+                    sits += 1
+                    stage = 2
+                    end_time = time.time()
+                    sec = curr_time - prev_time
+                    text = "Sit Detected, Total Sits: " + str(sits) + ", Time: " + str(round(end_time - start_time, 2)) + "s"
+                    print("Time",sec,"diff_shoulder",diff_shoulder,"ratio_armR",ratio_armR,"ratio_armL",ratio_armL,"diff_hip",diff_hip,"ratio_legR",ratio_legR,"ratio_legL",ratio_legL)
+                    with open('posture.csv', mode='a', newline='') as csv_file:
+                        writer = csv.writer(csv_file)
+                        writer.writerow(List)
+                    csv_file.close()
+                else:
+                    text = "Stand Straight"
+                    sec = curr_time - prev_time
+                    print("Time",sec,"diff_shoulder",diff_shoulder,"ratio_armR",ratio_armR,"ratio_armL",ratio_armL,"diff_hip",diff_hip,"ratio_legR",ratio_legR,"ratio_legL",ratio_legL)
+                    with open('posture.csv', mode='a', newline='') as csv_file:
+                        writer = csv.writer(csv_file)
+                        writer.writerow(List)
+                    csv_file.close()
+            # Display stage text
+            cv2.putText(image, text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            if timer_started:
+                curr_time = time.time()
+                timer = curr_time - prev_time
+                if timer < 0:
+                    #print(timer)
+                    timer = abs(timer)
+                    cv2.putText(image, "Countdown: {:.0f}".format(timer), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 0, 255), 2)
+                    #print(timer)
+                elif timer >= 0:
+                    cv2.putText(image, "Timer: {:.2f}".format(timer), (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 0, 255), 2)
+                    
+            # Display frame
+            ret,buffer=cv2.imencode('.jpg',image)
+            frame=buffer.tobytes()
+            #process_video_stream(frame)
+            yield(b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+            #cv2.imshow('Mediapipe Feed', image)
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 @app.route("/neverfall")
 def neverfall():
-    return Response(process_video_stream(),mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(video(),mimetype='multipart/x-mixed-replace; boundary=frame')
     
 
 
@@ -520,7 +756,7 @@ def checklist():
                 risk = 'high'
             elif sum < 7:
                 risk = 'low'
-            cursor.execute('INSERT INTO Checklist VALUES (%s,%s, %s, %s, %s, %s, %s, %s)', (id,fall, bendedback, walkslow, cane, medicines, sum, risk))
+            cursor.execute('INSERT INTO Checklist VALUES (%s,%s,%s, %s, %s, %s, %s, %s, %s)', (None,id,fall, bendedback, walkslow, cane, medicines, sum, risk))
             cnx.commit()
             msg = 'Thank you for doing the checklist!'
     return render_template("checklist.html", msg = msg)

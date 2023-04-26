@@ -64,9 +64,14 @@
         }
         
         h1 {
-          margin-bottom: 1.5rem;
+          
           color: #141414;
           font-size: 2rem;
+        }
+        h2 {
+          
+          color: #3f3f3f;
+          font-size: 1rem;
         }
         
         .input-container {
@@ -193,7 +198,8 @@
     <body>
         <div class="container">
             <div class="login-form" align="center">
-                <h1>Create a New Account</h1>
+                <h1>Create a New Account</h1><br></br>
+                <h2>{{msg}}</h2>
             <div class="registerbottom">
               <form action="{{ url_for('register')}}" method="post" autocomplete="off">
             <div class="input-container">
