@@ -13,4 +13,5 @@ https://suttipong-kull.medium.com/how-to-use-mysql-for-develop-web-application-b
 https://www.geeksforgeeks.org/profile-application-using-python-flask-and-mysql/
 
 def gen(), def calculate_angle(), def process_video_stream() NOT USED
+
 firebase.py, __init__.py, model.ipynb, Posture.csv NOT USED
